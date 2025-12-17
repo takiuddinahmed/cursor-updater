@@ -1,0 +1,7 @@
+[Unit]
+Description=Update Cursor IDE (AppImage)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/update-cursor
+

@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Re-exec as root if needed
+if [[ ${EUID:-$(id -u)} -ne 0 ]]; then
+  exec sudo -E "$0" "$@"
+fi
+
+need() { command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing dependency: $1"; exit 1; }; }
+
+need curl
+
+ARCH="$(uname -m)"
+case "$ARCH" in
+  x86_64)  PLATFORM="linux-x64" ;;
+  aarch64|arm64) PLATFORM="linux-arm64" ;;
+  *)
+    echo "❌ Unsupported arch: $ARCH"
+    exit 1
+    ;;
+esac
+
+TRACK="${1:-stable}"  # usage: update-cursor [stable|insiders]
+API_URL="https://www.cursor.com/api/download?platform=${PLATFORM}&releaseTrack=${TRACK}"
+
+echo "➡️  Cursor update (platform=${PLATFORM}, track=${TRACK})"
+echo "➡️  API: ${API_URL}"
+
+JSON="$(curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 60 "$API_URL" || true)"
+
+if [[ -z "${JSON}" ]]; then
+  echo "❌ Empty response from API."
+  exit 1
+fi
+
+# Parse downloadUrl reliably:
+DOWNLOAD_URL=""
+
+# Preferred: python (if available)
+if command -v python3 >/dev/null 2>&1; then
+  DOWNLOAD_URL="$(
+    JSON="$JSON" python3 -c '
+import os, json
+data = json.loads(os.environ["JSON"])
+print(data.get("downloadUrl",""))
+' 2>/dev/null || true
+  )"
+fi
+
+# Fallback: grep/sed (no python)
+if [[ -z "${DOWNLOAD_URL}" ]]; then
+  DOWNLOAD_URL="$(
+    printf '%s' "$JSON" | sed -n 's/.*"downloadUrl"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p' | head -n1
+  )"
+fi
+
+if [[ -z "$DOWNLOAD_URL" || "$DOWNLOAD_URL" != http* ]]; then
+  echo "❌ Could not parse download URL from API response."
+  echo "API response was:"
+  echo "$JSON"
+  exit 1
+fi
+
+echo "✅ Download URL: $DOWNLOAD_URL"
+
+INSTALL_DIR="/opt/cursor"
+APPIMAGE_PATH="${INSTALL_DIR}/cursor.AppImage"
+BIN_LINK="/usr/local/bin/cursor"
+
+TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR"' EXIT
+
+TMP_APP="${TMPDIR}/cursor.AppImage"
+
+echo "⬇️  Downloading..."
+curl -fL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 600 \
+  -o "$TMP_APP" "$DOWNLOAD_URL"
+
+chmod +x "$TMP_APP"
+
+mkdir -p "$INSTALL_DIR"
+
+# Backup existing
+if [[ -f "$APPIMAGE_PATH" ]]; then
+  TS="$(date +%Y%m%d-%H%M%S)"
+  cp -a "$APPIMAGE_PATH" "${APPIMAGE_PATH}.bak-${TS}"
+  echo "🗂️  Backup: ${APPIMAGE_PATH}.bak-${TS}"
+fi
+
+mv -f "$TMP_APP" "$APPIMAGE_PATH"
+ln -sf "$APPIMAGE_PATH" "$BIN_LINK"
+
+echo "✅ Installed: $APPIMAGE_PATH"
+echo "✅ Launcher:  $BIN_LINK"
+echo "ℹ️  Run Cursor with: cursor"
+

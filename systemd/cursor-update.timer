@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Cursor IDE update
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
