@@ -90,6 +90,51 @@ fi
 mv -f "$TMP_APP" "$APPIMAGE_PATH"
 ln -sf "$APPIMAGE_PATH" "$BIN_LINK"
 
+# Extract and install icon from AppImage if possible
+ICON_DIR="/usr/share/pixmaps"
+ICON_PATH="${ICON_DIR}/cursor.png"
+if [[ -f "$APPIMAGE_PATH" ]]; then
+  EXTRACT_DIR="${TMPDIR}/appimage_extract"
+  mkdir -p "$EXTRACT_DIR"
+  EXTRACTED_ICON=""
+  
+  # Method 1: Try extracting from squashfs (most reliable)
+  if command -v unsquashfs >/dev/null 2>&1; then
+    if unsquashfs -d "$EXTRACT_DIR" -f "$APPIMAGE_PATH" .DirIcon 2>/dev/null; then
+      if [[ -f "$EXTRACT_DIR/.DirIcon" ]]; then
+        EXTRACTED_ICON="$EXTRACT_DIR/.DirIcon"
+      fi
+    fi
+  fi
+  
+  # Method 2: Try AppImage's --appimage-extract (extracts to current dir, so we cd to tmpdir)
+  if [[ -z "$EXTRACTED_ICON" ]]; then
+    OLD_PWD="$PWD"
+    cd "$TMPDIR" || true
+    if "$APPIMAGE_PATH" --appimage-extract .DirIcon 2>/dev/null; then
+      if [[ -f "$TMPDIR/squashfs-root/.DirIcon" ]]; then
+        EXTRACTED_ICON="$TMPDIR/squashfs-root/.DirIcon"
+      elif [[ -f "$TMPDIR/.DirIcon" ]]; then
+        EXTRACTED_ICON="$TMPDIR/.DirIcon"
+      fi
+    fi
+    cd "$OLD_PWD" || true
+  fi
+  
+  # Install the extracted icon
+  if [[ -n "$EXTRACTED_ICON" ]] && [[ -f "$EXTRACTED_ICON" ]]; then
+    mkdir -p "$ICON_DIR"
+    # Convert to PNG if needed, or copy directly
+    if file "$EXTRACTED_ICON" 2>/dev/null | grep -qi "PNG\|image"; then
+      cp "$EXTRACTED_ICON" "$ICON_PATH" 2>/dev/null && echo "✅ Installed icon: $ICON_PATH" || true
+    elif command -v convert >/dev/null 2>&1; then
+      convert "$EXTRACTED_ICON" "$ICON_PATH" 2>/dev/null && echo "✅ Installed icon: $ICON_PATH" || true
+    else
+      cp "$EXTRACTED_ICON" "$ICON_PATH" 2>/dev/null && echo "✅ Installed icon: $ICON_PATH" || true
+    fi
+  fi
+fi
+
 echo "✅ Installed: $APPIMAGE_PATH"
 echo "✅ Launcher:  $BIN_LINK"
 echo "ℹ️  Run Cursor with: cursor"

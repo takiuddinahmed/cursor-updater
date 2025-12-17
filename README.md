@@ -6,6 +6,7 @@ A tiny, reliable updater for Cursor IDE (AppImage) using Cursor's official downl
 - Fetches latest Cursor release via API
 - Downloads AppImage and updates safely
 - Optional systemd timer for auto updates
+- Desktop icon integration
 - Designed for Arch/Archcraft/Openbox but works on most Linux distros
 
 ## Install
@@ -62,6 +63,8 @@ journalctl -u cursor-update.service
 - Installs `update-cursor` into `/usr/local/bin`
 - AppImage location: `/opt/cursor/cursor.AppImage`
 - Symlink: `/usr/local/bin/cursor` → `/opt/cursor/cursor.AppImage`
+- Desktop file: `/usr/share/applications/cursor.desktop`
+- Icon: `/usr/share/pixmaps/cursor.png` (extracted from AppImage)
 - Backups are created with timestamps: `cursor.AppImage.bak-YYYYMMDD-HHMMSS`
 
 ## License

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Cursor
+Comment=The AI-first code editor
+Exec=/usr/local/bin/cursor %F
+Icon=cursor
+Terminal=false
+Categories=Development;IDE;TextEditor;
+MimeType=text/plain;inode/directory;
+StartupNotify=true
+StartupWMClass=cursor
+
