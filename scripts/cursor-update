@@ -20,16 +20,54 @@ case "$ARCH" in
     ;;
 esac
 
-TRACK="${1:-stable}"  # usage: update-cursor [stable|insiders]
-API_URL="https://www.cursor.com/api/download?platform=${PLATFORM}&releaseTrack=${TRACK}"
+TRACK="${1:-stable}"  # usage: update-cursor [stable|latest]
+
+case "$TRACK" in
+  stable|latest)
+    ;;
+  insiders|nightly|early-access|earlyaccess|beta|preview|canary)
+    cat >&2 <<EOF
+❌ Track '$TRACK' is no longer supported by Cursor's public download API.
+   https://cursor.com/api/download only serves 'stable' and 'latest'.
+
+   Pre-release channels (Early Access, Nightly) are delivered through
+   Cursor's in-app updater, not this tool:
+     1. Install stable first:  sudo update-cursor
+     2. Open Cursor → Settings → Beta tab
+     3. Switch update channel to 'Early Access' or 'Nightly'
+EOF
+    exit 2
+    ;;
+  *)
+    echo "❌ Unknown track: '$TRACK'. Supported: stable, latest." >&2
+    exit 2
+    ;;
+esac
+
+API_URL="https://cursor.com/api/download?platform=${PLATFORM}&releaseTrack=${TRACK}"
 
 echo "➡️  Cursor update (platform=${PLATFORM}, track=${TRACK})"
 echo "➡️  API: ${API_URL}"
 
-JSON="$(curl -fsSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 60 "$API_URL" || true)"
+BODY_FILE="$(mktemp)"
+
+HTTP_CODE="$(curl -sSL --retry 5 --retry-delay 2 --connect-timeout 10 --max-time 60 \
+  -o "$BODY_FILE" -w '%{http_code}' "$API_URL" || echo "000")"
+
+if [[ "$HTTP_CODE" != "200" ]]; then
+  echo "❌ API returned HTTP ${HTTP_CODE} from ${API_URL}" >&2
+  echo "Response body:" >&2
+  cat "$BODY_FILE" >&2
+  echo >&2
+  rm -f "$BODY_FILE"
+  exit 1
+fi
+
+JSON="$(cat "$BODY_FILE")"
+rm -f "$BODY_FILE"
 
 if [[ -z "${JSON}" ]]; then
-  echo "❌ Empty response from API."
+  echo "❌ Empty response from API." >&2
   exit 1
 fi
 
