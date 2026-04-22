@@ -10,58 +10,6 @@ need() { command -v "$1" >/dev/null 2>&1 || { echo "❌ Missing dependency: $1";
 
 need curl
 
-INSTALL_DIR="/opt/cursor"
-APPIMAGE_PATH="${INSTALL_DIR}/cursor.AppImage"
-BIN_LINK="/usr/local/bin/cursor"
-
-CMD="${1:-stable}"
-
-# Handle uninstall subcommand before anything else
-if [[ "$CMD" == "uninstall" ]]; then
-  echo "➡️  Uninstalling Cursor IDE..."
-
-  if [[ -L "$BIN_LINK" || -f "$BIN_LINK" ]]; then
-    rm -f "$BIN_LINK"
-    echo "✅ Removed: $BIN_LINK"
-  fi
-
-  if [[ -f "$APPIMAGE_PATH" ]]; then
-    rm -f "$APPIMAGE_PATH"
-    echo "✅ Removed: $APPIMAGE_PATH"
-  fi
-
-  # Remove timestamped backups
-  shopt -s nullglob
-  backups=("${APPIMAGE_PATH}.bak-"*)
-  shopt -u nullglob
-  if [[ ${#backups[@]} -gt 0 ]]; then
-    rm -f "${backups[@]}"
-    echo "✅ Removed ${#backups[@]} backup(s)"
-  fi
-
-  # Remove install dir if now empty
-  if [[ -d "$INSTALL_DIR" ]] && [[ -z "$(ls -A "$INSTALL_DIR")" ]]; then
-    rmdir "$INSTALL_DIR"
-    echo "✅ Removed: $INSTALL_DIR"
-  fi
-
-  if [[ -f /usr/share/pixmaps/cursor.png ]]; then
-    rm -f /usr/share/pixmaps/cursor.png
-    echo "✅ Removed: /usr/share/pixmaps/cursor.png"
-  fi
-
-  if [[ -f /usr/share/applications/cursor.desktop ]]; then
-    rm -f /usr/share/applications/cursor.desktop
-    if command -v update-desktop-database >/dev/null 2>&1; then
-      update-desktop-database /usr/share/applications 2>/dev/null || true
-    fi
-    echo "✅ Removed: /usr/share/applications/cursor.desktop"
-  fi
-
-  echo "✅ Cursor IDE uninstalled."
-  exit 0
-fi
-
 ARCH="$(uname -m)"
 case "$ARCH" in
   x86_64)  PLATFORM="linux-x64" ;;
@@ -72,7 +20,7 @@ case "$ARCH" in
     ;;
 esac
 
-TRACK="$CMD"  # usage: update-cursor [stable|latest]
+TRACK="${1:-stable}"  # usage: update-cursor [stable|latest]
 
 case "$TRACK" in
   stable|latest)
@@ -152,6 +100,10 @@ if [[ -z "$DOWNLOAD_URL" || "$DOWNLOAD_URL" != http* ]]; then
 fi
 
 echo "✅ Download URL: $DOWNLOAD_URL"
+
+INSTALL_DIR="/opt/cursor"
+APPIMAGE_PATH="${INSTALL_DIR}/cursor.AppImage"
+BIN_LINK="/usr/local/bin/cursor"
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
