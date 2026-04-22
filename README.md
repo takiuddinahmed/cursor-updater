@@ -30,10 +30,26 @@ Update Cursor manually:
 sudo update-cursor
 ```
 
-Update to insiders track:
+This fetches the latest stable release. You can also pass an explicit track:
 ```bash
-sudo update-cursor insiders
+sudo update-cursor stable   # same as default
+sudo update-cursor latest   # equivalent to stable
 ```
+
+### Pre-release builds (Early Access / Nightly)
+
+Cursor's public download API only serves the `stable` / `latest` track, so this
+tool cannot install Early Access or Nightly builds directly. Those channels are
+delivered through Cursor's in-app updater:
+
+1. Install stable first with `sudo update-cursor`.
+2. Open Cursor and go to **Settings → Beta**.
+3. Switch the update channel to **Early Access** or **Nightly**.
+4. Restart Cursor; it will self-update to that channel from then on.
+
+> The previously documented `sudo update-cursor insiders` command is no longer
+> supported — the `insiders` track was removed from Cursor's public API and the
+> updater now exits with a pointer to the in-app Beta settings.
 
 ## Enable auto-update (systemd)
 
